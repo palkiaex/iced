@@ -8,6 +8,7 @@ use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use thiserror::Error;
 
 use std::borrow::Cow;
+use std::fmt::Debug;
 
 /// A graphics compositor that can draw to windows.
 pub trait Compositor: Sized {
@@ -103,12 +104,17 @@ pub trait Compositor: Sized {
 /// This is just a convenient super trait of the `raw-window-handle`
 /// traits.
 pub trait Window:
-    HasWindowHandle + HasDisplayHandle + MaybeSend + MaybeSync + 'static
+    HasWindowHandle + HasDisplayHandle + Debug + MaybeSend + MaybeSync + 'static
 {
 }
 
 impl<T> Window for T where
-    T: HasWindowHandle + HasDisplayHandle + MaybeSend + MaybeSync + 'static
+    T: HasWindowHandle
+        + HasDisplayHandle
+        + Debug
+        + MaybeSend
+        + MaybeSync
+        + 'static
 {
 }
 
@@ -116,10 +122,15 @@ impl<T> Window for T where
 ///
 /// This is just a convenient super trait of the `raw-window-handle`
 /// trait.
-pub trait Display: HasDisplayHandle + MaybeSend + MaybeSync + 'static {}
+pub trait Display:
+    HasDisplayHandle + Debug + MaybeSend + MaybeSync + 'static
+{
+}
 
-impl<T> Display for T where T: HasDisplayHandle + MaybeSend + MaybeSync + 'static
-{}
+impl<T> Display for T where
+    T: HasDisplayHandle + Debug + MaybeSend + MaybeSync + 'static
+{
+}
 
 /// Defines the default compositor of a renderer.
 pub trait Default {

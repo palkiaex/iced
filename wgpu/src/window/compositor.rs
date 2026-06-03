@@ -49,18 +49,21 @@ impl Compositor {
     /// Returns `None` if no compatible graphics adapter could be found.
     pub async fn request<W: compositor::Window>(
         settings: Settings,
+        display: impl compositor::Display,
         compatible_window: Option<W>,
         shell: Shell,
     ) -> Result<Self, Error> {
         let instance = wgpu::util::new_instance_with_webgpu_detection(
-            &wgpu::InstanceDescriptor {
+            wgpu::InstanceDescriptor {
                 backends: settings.backends,
                 flags: if cfg!(feature = "strict-assertions") {
                     wgpu::InstanceFlags::debugging()
                 } else {
                     wgpu::InstanceFlags::empty()
                 },
-                ..Default::default()
+                ..wgpu::InstanceDescriptor::new_with_display_handle(Box::new(
+                    display,
+                ))
             },
         )
         .await;
@@ -71,6 +74,7 @@ impl Compositor {
         if log::max_level() >= log::LevelFilter::Info {
             let available_adapters: Vec<_> = instance
                 .enumerate_adapters(settings.backends)
+                .await
                 .iter()
                 .map(wgpu::Adapter::get_info)
                 .collect();
@@ -206,12 +210,13 @@ impl Compositor {
 }
 
 /// Creates a [`Compositor`] with the given [`Settings`] and window.
-pub async fn new<W: compositor::Window>(
+pub async fn new(
     settings: Settings,
-    compatible_window: W,
+    display: impl compositor::Display,
+    compatible_window: impl compositor::Window,
     shell: Shell,
 ) -> Result<Compositor, Error> {
-    Compositor::request(settings, Some(compatible_window), shell).await
+    Compositor::request(settings, display, Some(compatible_window), shell).await
 }
 
 /// Presents the given primitives with the given [`Compositor`].
@@ -223,7 +228,7 @@ pub fn present(
     on_pre_present: impl FnOnce(),
 ) -> Result<(), compositor::SurfaceError> {
     match surface.get_current_texture() {
-        Ok(frame) => {
+        wgpu::CurrentSurfaceTexture::Success(frame) => {
             let view = &frame
                 .texture
                 .create_view(&wgpu::TextureViewDescriptor::default());
@@ -241,19 +246,17 @@ pub fn present(
 
             Ok(())
         }
-        Err(error) => match error {
-            wgpu::SurfaceError::Timeout => {
-                Err(compositor::SurfaceError::Timeout)
-            }
-            wgpu::SurfaceError::Outdated => {
-                Err(compositor::SurfaceError::Outdated)
-            }
-            wgpu::SurfaceError::Lost => Err(compositor::SurfaceError::Lost),
-            wgpu::SurfaceError::OutOfMemory => {
-                Err(compositor::SurfaceError::OutOfMemory)
-            }
-            wgpu::SurfaceError::Other => Err(compositor::SurfaceError::Other),
-        },
+        wgpu::CurrentSurfaceTexture::Suboptimal(_)
+        | wgpu::CurrentSurfaceTexture::Outdated => {
+            Err(compositor::SurfaceError::Outdated)
+        }
+        wgpu::CurrentSurfaceTexture::Timeout => {
+            Err(compositor::SurfaceError::Timeout)
+        }
+        wgpu::CurrentSurfaceTexture::Lost => {
+            Err(compositor::SurfaceError::Lost)
+        }
+        _ => Err(compositor::SurfaceError::Other),
     }
 }
 
@@ -263,7 +266,7 @@ impl graphics::Compositor for Compositor {
 
     async fn with_backend(
         settings: graphics::Settings,
-        _display: impl compositor::Display,
+        display: impl compositor::Display,
         compatible_window: impl compositor::Window,
         shell: Shell,
         backend: Option<&str>,
@@ -280,7 +283,7 @@ impl graphics::Compositor for Compositor {
                     settings.present_mode = present_mode;
                 }
 
-                Ok(new(settings, compatible_window, shell).await?)
+                Ok(new(settings, display, compatible_window, shell).await?)
             }
             Some(backend) => Err(graphics::Error::GraphicsAdapterNotFound {
                 backend: "wgpu",

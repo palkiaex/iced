@@ -45,7 +45,7 @@ impl Pipeline {
             address_mode_w: wgpu::AddressMode::ClampToEdge,
             min_filter: wgpu::FilterMode::Nearest,
             mag_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::MipmapFilterMode::Nearest,
             ..Default::default()
         });
 
@@ -55,7 +55,7 @@ impl Pipeline {
             address_mode_w: wgpu::AddressMode::ClampToEdge,
             min_filter: wgpu::FilterMode::Linear,
             mag_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::MipmapFilterMode::Linear,
             ..Default::default()
         });
 
@@ -106,8 +106,8 @@ impl Pipeline {
         let layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("iced_wgpu::image pipeline layout"),
-                push_constant_ranges: &[],
-                bind_group_layouts: &[&constant_layout, &texture_layout],
+                bind_group_layouts: &[Some(&constant_layout), Some(&texture_layout)],
+                immediate_size: 0
             });
 
         let shader =
@@ -191,7 +191,7 @@ impl Pipeline {
                     mask: !0,
                     alpha_to_coverage_enabled: false,
                 },
-                multiview: None,
+                multiview_mask: None,
                 cache: None,
             });
 
@@ -528,7 +528,6 @@ impl Layer {
             &self.uniforms,
             0,
             (bytes.len() as u64).try_into().expect("Sized uniforms"),
-            device,
         )
         .copy_from_slice(bytes);
 

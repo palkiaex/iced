@@ -237,7 +237,6 @@ impl Layer {
             &self.constants_buffer,
             0,
             (bytes.len() as u64).try_into().expect("Sized uniforms"),
-            device,
         )
         .copy_from_slice(bytes);
     }

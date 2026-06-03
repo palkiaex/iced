@@ -245,11 +245,7 @@ pub fn align(
     if needs_relayout {
         log::trace!("Relayouting paragraph...");
 
-        buffer.set_size(
-            font_system,
-            Some(min_bounds.width),
-            Some(min_bounds.height),
-        );
+        buffer.set_size(Some(min_bounds.width), Some(min_bounds.height));
     }
 
     min_bounds
