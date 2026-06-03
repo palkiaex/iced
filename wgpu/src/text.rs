@@ -619,7 +619,7 @@ fn prepare(
             )?;
 
             Some(cryoglyph::TextArea {
-                text: buffer.layout_runs(),
+                buffer,
                 left: position.x,
                 top: position.y,
                 scale: transformation.scale_factor()
